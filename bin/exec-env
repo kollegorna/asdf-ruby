@@ -12,6 +12,8 @@ else
   export RUBYLIB="$ruby_plugin_dir/rubygems-plugin:$RUBYGEMS_PATH:$RUBYLIB"
 fi
 
+export LD_LIBRARY_PATH="${ASDF_INSTALL_PATH}/lib:${LD_LIBRARY_PATH}"
+
 export PATH=$ASDF_INSTALL_PATH/bin:$PATH
 
 
