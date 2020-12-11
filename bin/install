@@ -40,25 +40,20 @@ patch_dylibs() {
 
   HOSTEDTOOLCACHE_PATH="/Users/runner/hostedtoolcache/Ruby/$version/x64"
 
-  TRAVIS_CI_DYLIB=$(otool -L -r $install_path/bin/ruby | grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." | sed -e 's#.*'"${HOSTEDTOOLCACHE_PATH}"'/lib/\([^ ]*\).*$#\1#')
-
-  echo $TRAVIS_CI_DYLIB;
+  local TRAVIS_CI_DYLIB=$(otool -L -r $install_path/bin/ruby | grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." | sed -e 's#.*'"${HOSTEDTOOLCACHE_PATH}"'/lib/\([^ ]*\).*$#\1#')
 
   # check that found what was expetectd
   if [[ "$TRAVIS_CI_DYLIB" =~ ^libruby\..*\.dylib$ ]]
   then
     # and do it for all files from location ./vendor/ruby
     find $install_path -type f -exec bash -c '\
-      HAS_TRAVIS_CI_BINDING=$(grep "'"${HOSTEDTOOLCACHE_PATH}"'/lib/libruby." "{}"); \
+      HAS_TRAVIS_CI_BINDING=$(grep '"${HOSTEDTOOLCACHE_PATH}"'"/lib/libruby." "{}"); \
       if [[ "$HAS_TRAVIS_CI_BINDING" != "" ]] ; then \
         FILE_DEPTH=$(expr $(echo "{}" | sed -e "s#[^/]##g" | wc -m ) - 1); \
         LOADER_PATH=""; \
         for ((i=$FILE_DEPTH;i>3;i--)); do LOADER_PATH="../$LOADER_PATH"; done; \
         LOADER_PATH='"${install_path}"'"/$LOADER_PATH"'"lib/${TRAVIS_CI_DYLIB}"'; \
         SEARCH_DYLIB='"${HOSTEDTOOLCACHE_PATH}"'"/lib/"'"${TRAVIS_CI_DYLIB}"'; \
-        echo $TRAVIS_CI_DYLIB; \
-        echo $SEARCH_DYLIB; \
-        echo $LOADER_PATH; \
         install_name_tool -change "$SEARCH_DYLIB" "$LOADER_PATH" "{}"; \
       fi \
     ' \;
