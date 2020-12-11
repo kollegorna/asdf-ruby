@@ -42,6 +42,8 @@ patch_dylibs() {
 
   TRAVIS_CI_DYLIB=$(otool -L -r $install_path/bin/ruby | grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." | sed -e 's#.*'"${HOSTEDTOOLCACHE_PATH}"'/lib/\([^ ]*\).*$#\1#')
 
+  echo $TRAVIS_CI_DYLIB;
+
   # check that found what was expetectd
   if [[ "$TRAVIS_CI_DYLIB" =~ ^libruby\..*\.dylib$ ]]
   then
