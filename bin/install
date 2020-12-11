@@ -29,7 +29,7 @@ install_ruby() {
     exit 1
   fi
 
-  tar -zxvf $source_path -C $install_path --strip 1 || exit 1
+  tar -zxf $source_path -C $install_path --strip 1 || exit 1
 
   patch_dylibs $install_path $version
 }
