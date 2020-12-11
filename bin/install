@@ -49,7 +49,7 @@ patch_dylibs() {
   then
     # and do it for all files from location ./vendor/ruby
     find $install_path -type f -exec bash -c '\
-      HAS_TRAVIS_CI_BINDING=$(grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." "{}"); \
+      HAS_TRAVIS_CI_BINDING=$(grep "'"${HOSTEDTOOLCACHE_PATH}"'/lib/libruby." "{}"); \
       if [[ "$HAS_TRAVIS_CI_BINDING" != "" ]] ; then \
         FILE_DEPTH=$(expr $(echo "{}" | sed -e "s#[^/]##g" | wc -m ) - 1); \
         LOADER_PATH=""; \
