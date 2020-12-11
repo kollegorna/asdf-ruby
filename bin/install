@@ -6,48 +6,137 @@ set -euo pipefail
 source "$(dirname $0)/../lib/utils.sh"
 
 install_ruby() {
-  ensure_ruby_build_setup
-
   local install_type=$1
   local version=$2
   local install_path=$3
 
-  if [ "$install_type" != "version" ]; then
-    echoerr "Cannot install specific ref from source, sorry."
-    echoerr "For a list of available versions, see \`asdf list-all ruby\`"
+  if [ "$TMPDIR" = "" ]; then
+    local tmp_download_dir=$(mktemp -d -t ruby_build_XXXXXX)
+  else
+    local tmp_download_dir=$TMPDIR
+  fi
+
+  local distro_version=$(get_distro_version)
+
+  # path to the tar.gz file
+  local source_path="$tmp_download_dir/$version-$distro_version.tar.gz"
+  download_file_for_version $version $distro_version $source_path
+
+  echo "==> Copying release into place"
+
+  if ! type "tar" &> /dev/null; then
+    echo "ERROR: tar not found"
     exit 1
   fi
 
-  local opts=""
-  local patches=""
+  tar -zxvf $source_path -C $install_path --strip 1 || exit 1
 
-  if [[ -n "${RUBY_APPLY_PATCHES:-}" ]]; then
-    opts="$opts --patch"
-    patches=$(fetch_patches "$RUBY_APPLY_PATCHES")
-  fi
-
-  if [[ -n "${RUBY_BUILD_OPTS:-}" ]]; then
-    opts="$opts $RUBY_BUILD_OPTS"
-  fi
-
-  # shellcheck disable=SC2086
-  echo "$patches" | $(ruby_build_path) ${opts} "$version" "$install_path"
+  patch_dylibs $install_path $version
 }
 
-fetch_patches() {
-  while read -r line; do
-    if [ "$line" = "" ]; then continue; fi
-    if [[ "$line" =~ ^[Hh][Tt][Tt][Pp][Ss]?:// ]]; then
-      >&2 echo "Using patch from URL: $line"
-      curl -fSs "$line" || exit 1
-    else
-      local abs_path
-      abs_path="$(get_absolute_path "$line")"
-      >&2 echo "Using local patch: $abs_path"
-      cat "$abs_path" || exit 1
-    fi
-  done <<< "$@"
+patch_dylibs() {
+  local install_path=$1
+  local version=$2
+
+  HOSTEDTOOLCACHE_PATH="/Users/runner/hostedtoolcache/Ruby/$version/x64"
+
+  TRAVIS_CI_DYLIB=$(otool -L -r $install_path/bin/ruby | grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." | sed -e 's#.*'"${HOSTEDTOOLCACHE_PATH}"'/lib/\([^ ]*\).*$#\1#')
+
+  # check that found what was expetectd
+  if [[ "$TRAVIS_CI_DYLIB" =~ ^libruby\..*\.dylib$ ]]
+  then
+    # and do it for all files from location ./vendor/ruby
+    find $install_path -type f -exec bash -c '\
+      HAS_TRAVIS_CI_BINDING=$(grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." "{}"); \
+      if [[ "$HAS_TRAVIS_CI_BINDING" != "" ]] ; then \
+        FILE_DEPTH=$(expr $(echo "{}" | sed -e "s#[^/]##g" | wc -m ) - 1); \
+        LOADER_PATH=""; \
+        for ((i=$FILE_DEPTH;i>3;i--)); do LOADER_PATH="../$LOADER_PATH"; done; \
+        LOADER_PATH='"${install_path}"'"/$LOADER_PATH"'"lib/${TRAVIS_CI_DYLIB}"'; \
+        SEARCH_DYLIB='"${HOSTEDTOOLCACHE_PATH}"'"/lib/"'"${TRAVIS_CI_DYLIB}"'; \
+        echo $SEARCH_DYLIB; \
+        echo $LOADER_PATH; \
+        install_name_tool -change "$SEARCH_DYLIB" "$LOADER_PATH" "{}"; \
+      fi \
+    ' \;
+
+    # patch id of the library
+    install_name_tool -id "${TRAVIS_CI_DYLIB}" "${install_path}/lib/${TRAVIS_CI_DYLIB}" 2>/dev/null
+  fi
 }
+
+get_distro_version() {
+  local distro
+  local version
+
+  if type "sw_vers" &> /dev/null; then
+    distro="macos"
+    version="latest"
+  fi
+
+  if type "lsb_release" &> /dev/null; then
+    distro="ubuntu"
+    version=$(lsb_release -sr)
+  fi
+
+  echo "$distro-$version"
+}
+
+download_file_for_version() {
+  local version=$1
+  local distro_version=$2
+  local download_path=$3
+  local download_url=$(get_download_url_for_version $version $distro_version)
+
+
+  # determine if the file exists
+  echo "==> Checking whether specified Ruby release exists..."
+  http_status=$(curl -I -w %{http_code} -s -o /dev/null $download_url)
+
+  if [ $http_status -eq 404 ] || [ $http_status -eq 403 ]; then
+    cat <<EOS
+==> Ruby version not found.
+Github returned a ${http_status} for the following URL:
+${download_url}
+You can view a list of all Ruby releases by running 'asdf list-all ruby'.
+Note: If you want to download a specific release of Ruby, please
+specify the full version number (e.g. 1.2.1 instead of 1.3).
+EOS
+
+    exit 1 # non zero due to file not existing
+  fi
+
+  echo "==> Downloading ${version} to ${download_path}"
+  curl -Lo $download_path -C - $download_url
+}
+
+get_download_url_for_version() {
+  local version=$1
+  local distro_version=$2
+
+  # if version is a release number, prepend ruby-
+  if [[ "$version" =~ ^[0-9]+\.* ]]; then
+    version="ruby-${version}"
+  fi
+
+  echo "https://github.com/ruby/ruby-builder/releases/download/toolcache/$version-$distro_version.tar.gz"
+}
+
+# TODO: Fix
+# fetch_patches() {
+#   while read -r line; do
+#     if [ "$line" = "" ]; then continue; fi
+#     if [[ "$line" =~ ^[Hh][Tt][Tt][Pp][Ss]?:// ]]; then
+#       >&2 echo "Using patch from URL: $line"
+#       curl -fSs "$line" || exit 1
+#     else
+#       local abs_path
+#       abs_path="$(get_absolute_path "$line")"
+#       >&2 echo "Using local patch: $abs_path"
+#       cat "$abs_path" || exit 1
+#     fi
+#   done <<< "$@"
+# }
 
 get_absolute_path() {
   local start_dir

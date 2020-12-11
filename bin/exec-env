@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 
 current_script_path=${BASH_SOURCE[0]}
+
 ruby_plugin_dir=$(dirname "$(dirname "$current_script_path")")
 
+RUBYGEMS_PATH=$(dirname "$(find "${ASDF_INSTALL_PATH}/lib/ruby" -name "rubygems.rb")"):$(dirname "$(find "${ASDF_INSTALL_PATH}/lib/ruby" -name "rbconfig.rb")")
+
 if [ "$RUBYLIB" = "" ]; then
-  export RUBYLIB="$ruby_plugin_dir/rubygems-plugin"
+  export RUBYLIB="$ruby_plugin_dir/rubygems-plugin:$RUBYGEMS_PATH"
 else
-  export RUBYLIB="$ruby_plugin_dir/rubygems-plugin:$RUBYLIB"
+  export RUBYLIB="$ruby_plugin_dir/rubygems-plugin:$RUBYGEMS_PATH:$RUBYLIB"
 fi
 
-export PATH=$install_path/bin:$PATH
+export PATH=$ASDF_INSTALL_PATH/bin:$PATH
+
+

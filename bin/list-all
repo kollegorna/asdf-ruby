@@ -6,11 +6,13 @@ set -euo pipefail
 source "$(dirname $0)/../lib/utils.sh"
 
 list_versions() {
-  ensure_ruby_build_setup
+  #ensure_ruby_build_setup
 
   # This sed command was a quick and dirty solution to remove topaz-dev from
   # the version list, since it doesn't exist
-  "$(ruby_build_path)" --definitions | grep -v "topaz-dev" | paste -sd " " -
+  #"$(ruby_build_path)" --definitions | grep -v "topaz-dev" | paste -sd " " -
+
+  echo "$(curl --silent https://api.github.com/repos/ruby/ruby-builder/releases/tags/toolcache | grep '"name":' | grep '.tar.gz' | sed 's/[|\"|\,|\:|[:space:]]//g' | sed "s/name//g")"
 }
 
 list_versions
