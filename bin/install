@@ -38,7 +38,7 @@ patch_dylibs() {
   local install_path=$1
   local version=$2
 
-  HOSTEDTOOLCACHE_PATH="/Users/runner/hostedtoolcache/Ruby/$version/x64"
+  local HOSTEDTOOLCACHE_PATH="/Users/runner/hostedtoolcache/Ruby/$version/x64"
 
   local TRAVIS_CI_DYLIB=$(otool -L -r $install_path/bin/ruby | grep "${HOSTEDTOOLCACHE_PATH}/lib/libruby." | sed -e 's#.*'"${HOSTEDTOOLCACHE_PATH}"'/lib/\([^ ]*\).*$#\1#')
 
