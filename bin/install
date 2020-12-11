@@ -35,6 +35,12 @@ install_ruby() {
 }
 
 patch_dylibs() {
+  # check if on osx and have right tools
+  if [[ -z "$(which otool)" || -z "$(which install_name_tool)" ]]
+  then
+    return
+  fi
+
   local install_path=$1
   local version=$2
 
