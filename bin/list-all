@@ -12,7 +12,9 @@ list_versions() {
   # the version list, since it doesn't exist
   #"$(ruby_build_path)" --definitions | grep -v "topaz-dev" | paste -sd " " -
 
-  echo "$(curl --silent https://api.github.com/repos/ruby/ruby-builder/releases/tags/toolcache | grep '"name":' | grep '.tar.gz' | sed 's/[|\"|\,|\:|[:space:]]//g' | sed "s/name//g")"
+  #echo "$(curl --silent https://api.github.com/repos/ruby/ruby-builder/releases/tags/toolcache | grep '"name":' | grep '.tar.gz' | sed 's/[|\"|\,|\:|[:space:]]//g' | sed "s/name//g")"
+
+  echo $(cat ../file)
 }
 
 list_versions
